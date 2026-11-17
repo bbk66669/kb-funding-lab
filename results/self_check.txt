@@ -1,0 +1,27 @@
+benchmark.py 自查结果
+[PASS] 资金费符号方向（正费率空头收钱） synthetic=0.01
+[PASS] 合约单位换算 BTC 
+[PASS] 合约单位换算 ETH 
+[PASS] 共同窗口为 90 天 days=90.0
+[PASS] 结算期数 = 270 n=270
+[PASS] 资金守恒 BTC 100 sum=100.0000 C=100
+[PASS] 资金费方向真实数据 BTC pos_contrib=1.320
+[PASS] 基差恒等式 BTC 100 
+[PASS] 四腿费用各一次 BTC 100 
+[PASS] 资金守恒 BTC 300 sum=300.0000 C=300
+[PASS] 基差恒等式 BTC 300 
+[PASS] 四腿费用各一次 BTC 300 
+[PASS] 资金守恒 BTC 1000 sum=1000.0000 C=1000
+[PASS] 基差恒等式 BTC 1000 
+[PASS] 四腿费用各一次 BTC 1000 
+[PASS] 资金守恒 ETH 100 sum=100.0000 C=100
+[PASS] 资金费方向真实数据 ETH pos_contrib=1.163
+[PASS] 基差恒等式 ETH 100 
+[PASS] 四腿费用各一次 ETH 100 
+[PASS] 资金守恒 ETH 300 sum=300.0000 C=300
+[PASS] 基差恒等式 ETH 300 
+[PASS] 四腿费用各一次 ETH 300 
+[PASS] 资金守恒 ETH 1000 sum=1000.0000 C=1000
+[PASS] 基差恒等式 ETH 1000 
+[PASS] 四腿费用各一次 ETH 1000 
+总计 25/25 通过
