@@ -127,3 +127,63 @@
 /api/v5/market/history-candles {"instId": "ETH-USDT-SWAP", "bar": "1H", "limit": 100, "after": 1787731200000} -> 100
 /api/v5/market/history-candles {"instId": "ETH-USDT-SWAP", "bar": "1H", "limit": 100, "after": 1787371200000} -> 100
 ```
+
+## 标记价格补充拉取（--only-mark，冻结窗口）
+
+- 补拉时间(UTC): 2026-11-17 15:23 UTC
+- 窗口: 2026-08-19 08:00 UTC .. 2026-11-17 08:00 UTC（需要 ts ∈ [2026-08-19 07:00 UTC, 2026-11-17 07:00 UTC] 的标记 K线，close 即结算/事件时刻的标记价格）
+- 接口: /api/v5/market/history-mark-price-candles（after=向旧分页，实测确认；before 返回空）
+
+| 合约 | 条数 | 首条ts | 末条ts | 缺失小时数 |
+|---|---|---|---|---|
+| BTC-USDT-SWAP | 2161 | 2026-08-19 07:00 UTC | 2026-11-17 07:00 UTC | 0 |
+| ETH-USDT-SWAP | 2161 | 2026-08-19 07:00 UTC | 2026-11-17 07:00 UTC | 0 |
+
+### 本次补拉请求日志
+
+```
+/api/v5/market/history-mark-price-candles {"instId": "BTC-USDT-SWAP", "bar": "1H", "limit": 100} -> 100
+/api/v5/market/history-mark-price-candles {"instId": "BTC-USDT-SWAP", "bar": "1H", "limit": 100, "after": 1794571200000} -> 100
+/api/v5/market/history-mark-price-candles {"instId": "BTC-USDT-SWAP", "bar": "1H", "limit": 100, "after": 1794211200000} -> 100
+/api/v5/market/history-mark-price-candles {"instId": "BTC-USDT-SWAP", "bar": "1H", "limit": 100, "after": 1793851200000} -> 100
+/api/v5/market/history-mark-price-candles {"instId": "BTC-USDT-SWAP", "bar": "1H", "limit": 100, "after": 1793491200000} -> 100
+/api/v5/market/history-mark-price-candles {"instId": "BTC-USDT-SWAP", "bar": "1H", "limit": 100, "after": 1793131200000} -> 100
+/api/v5/market/history-mark-price-candles {"instId": "BTC-USDT-SWAP", "bar": "1H", "limit": 100, "after": 1792771200000} -> 100
+/api/v5/market/history-mark-price-candles {"instId": "BTC-USDT-SWAP", "bar": "1H", "limit": 100, "after": 1792411200000} -> 100
+/api/v5/market/history-mark-price-candles {"instId": "BTC-USDT-SWAP", "bar": "1H", "limit": 100, "after": 1792051200000} -> 100
+/api/v5/market/history-mark-price-candles {"instId": "BTC-USDT-SWAP", "bar": "1H", "limit": 100, "after": 1791691200000} -> 100
+/api/v5/market/history-mark-price-candles {"instId": "BTC-USDT-SWAP", "bar": "1H", "limit": 100, "after": 1791331200000} -> 100
+/api/v5/market/history-mark-price-candles {"instId": "BTC-USDT-SWAP", "bar": "1H", "limit": 100, "after": 1790971200000} -> 100
+/api/v5/market/history-mark-price-candles {"instId": "BTC-USDT-SWAP", "bar": "1H", "limit": 100, "after": 1790611200000} -> 100
+/api/v5/market/history-mark-price-candles {"instId": "BTC-USDT-SWAP", "bar": "1H", "limit": 100, "after": 1790251200000} -> 100
+/api/v5/market/history-mark-price-candles {"instId": "BTC-USDT-SWAP", "bar": "1H", "limit": 100, "after": 1789891200000} -> 100
+/api/v5/market/history-mark-price-candles {"instId": "BTC-USDT-SWAP", "bar": "1H", "limit": 100, "after": 1789531200000} -> 100
+/api/v5/market/history-mark-price-candles {"instId": "BTC-USDT-SWAP", "bar": "1H", "limit": 100, "after": 1789171200000} -> 100
+/api/v5/market/history-mark-price-candles {"instId": "BTC-USDT-SWAP", "bar": "1H", "limit": 100, "after": 1788811200000} -> 100
+/api/v5/market/history-mark-price-candles {"instId": "BTC-USDT-SWAP", "bar": "1H", "limit": 100, "after": 1788451200000} -> 100
+/api/v5/market/history-mark-price-candles {"instId": "BTC-USDT-SWAP", "bar": "1H", "limit": 100, "after": 1788091200000} -> 100
+/api/v5/market/history-mark-price-candles {"instId": "BTC-USDT-SWAP", "bar": "1H", "limit": 100, "after": 1787731200000} -> 100
+/api/v5/market/history-mark-price-candles {"instId": "BTC-USDT-SWAP", "bar": "1H", "limit": 100, "after": 1787371200000} -> 100
+/api/v5/market/history-mark-price-candles {"instId": "ETH-USDT-SWAP", "bar": "1H", "limit": 100} -> 100
+/api/v5/market/history-mark-price-candles {"instId": "ETH-USDT-SWAP", "bar": "1H", "limit": 100, "after": 1794571200000} -> 100
+/api/v5/market/history-mark-price-candles {"instId": "ETH-USDT-SWAP", "bar": "1H", "limit": 100, "after": 1794211200000} -> 100
+/api/v5/market/history-mark-price-candles {"instId": "ETH-USDT-SWAP", "bar": "1H", "limit": 100, "after": 1793851200000} -> 100
+/api/v5/market/history-mark-price-candles {"instId": "ETH-USDT-SWAP", "bar": "1H", "limit": 100, "after": 1793491200000} -> 100
+/api/v5/market/history-mark-price-candles {"instId": "ETH-USDT-SWAP", "bar": "1H", "limit": 100, "after": 1793131200000} -> 100
+/api/v5/market/history-mark-price-candles {"instId": "ETH-USDT-SWAP", "bar": "1H", "limit": 100, "after": 1792771200000} -> 100
+/api/v5/market/history-mark-price-candles {"instId": "ETH-USDT-SWAP", "bar": "1H", "limit": 100, "after": 1792411200000} -> 100
+/api/v5/market/history-mark-price-candles {"instId": "ETH-USDT-SWAP", "bar": "1H", "limit": 100, "after": 1792051200000} -> 100
+/api/v5/market/history-mark-price-candles {"instId": "ETH-USDT-SWAP", "bar": "1H", "limit": 100, "after": 1791691200000} -> 100
+/api/v5/market/history-mark-price-candles {"instId": "ETH-USDT-SWAP", "bar": "1H", "limit": 100, "after": 1791331200000} -> 100
+/api/v5/market/history-mark-price-candles {"instId": "ETH-USDT-SWAP", "bar": "1H", "limit": 100, "after": 1790971200000} -> 100
+/api/v5/market/history-mark-price-candles {"instId": "ETH-USDT-SWAP", "bar": "1H", "limit": 100, "after": 1790611200000} -> 100
+/api/v5/market/history-mark-price-candles {"instId": "ETH-USDT-SWAP", "bar": "1H", "limit": 100, "after": 1790251200000} -> 100
+/api/v5/market/history-mark-price-candles {"instId": "ETH-USDT-SWAP", "bar": "1H", "limit": 100, "after": 1789891200000} -> 100
+/api/v5/market/history-mark-price-candles {"instId": "ETH-USDT-SWAP", "bar": "1H", "limit": 100, "after": 1789531200000} -> 100
+/api/v5/market/history-mark-price-candles {"instId": "ETH-USDT-SWAP", "bar": "1H", "limit": 100, "after": 1789171200000} -> 100
+/api/v5/market/history-mark-price-candles {"instId": "ETH-USDT-SWAP", "bar": "1H", "limit": 100, "after": 1788811200000} -> 100
+/api/v5/market/history-mark-price-candles {"instId": "ETH-USDT-SWAP", "bar": "1H", "limit": 100, "after": 1788451200000} -> 100
+/api/v5/market/history-mark-price-candles {"instId": "ETH-USDT-SWAP", "bar": "1H", "limit": 100, "after": 1788091200000} -> 100
+/api/v5/market/history-mark-price-candles {"instId": "ETH-USDT-SWAP", "bar": "1H", "limit": 100, "after": 1787731200000} -> 100
+/api/v5/market/history-mark-price-candles {"instId": "ETH-USDT-SWAP", "bar": "1H", "limit": 100, "after": 1787371200000} -> 100
+```

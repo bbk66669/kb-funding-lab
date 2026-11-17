@@ -1,30 +1,46 @@
 #!/usr/bin/env python3
 """
-benchmark.py — KB 第一轮核算 · 阶段1 固定持有基准 v2（Issue #1 补充规格版）
+benchmark.py — KB 第一轮核算 · 阶段1 固定持有基准（风验收修正版 v2）
 
-运行命令:  python3 scripts/pull_data.py && python3 scripts/benchmark.py
-产出:      results/phase1_report.md, results/benchmark_table.csv,
-           results/monthly_breakdown.csv, results/self_check.txt
+复现命令（冻结数据，只跑本脚本）:
+    python3 scripts/benchmark.py
+数据更新（会改变样本，勿用于复现）:
+    python3 scripts/pull_data.py            # 全量更新
+    python3 scripts/pull_data.py --only-mark --start-ms <T0> --end-ms <T1>   # 只补标记价格
 
-口径要点（与 v1 的区别以 Issue #1 补充规格为准）：
-  1. 样本窗口取 BTC 与 ETH 资金费结算时刻交集的共同窗口（同一 T0 建仓、同一 T1 平仓）。
-  2. 损益分腿列示：现货腿损益、永续腿损益分别计算；基差变化只作解释项，不重复计入。
-  3. 资金费按“结算时仓位价值 × 实际结算费率”逐期核算：仓位价值 = qty × 结算时刻
-     永续 1H K线开盘价；费率优先用 realizedRate（实际结算费率），缺失时回退 fundingRate。
-  4. 清算路径检查：逐小时（1H 收盘价）检查逐仓空头权益 vs 维持保证金；
-     权益(P) = 已划保证金 + 累计已结算资金费 − qty×(P−P0)；
-     当 权益 ≤ MMR × qty × P 时判定触发清算（MMR 取 OKX position-tiers 逐仓第 1 档，
-     来源为官方公开接口 /api/v5/public/position-tiers）。
-     触发后不再按完好对冲计算，给出截断口径结果。1H 频率不能排除盘中（小时内）清算。
-  5. 结果分列：交易净收益 / 扣运行成本后净收益。运行成本 $5/月，按样本实际天数折算，
-     假设 USD≈USDT。
-  6. 残余敞口量化：现货数量由合约张数×ctVal 反推，两腿基础币数量恒等（残余 delta = 0）；
-     lotSz 向下取整造成的未部署名义价值在分配表中单列。
+产出: results/phase1_report.md, results/benchmark_table.csv,
+      results/monthly_breakdown.csv, results/counterfactual_table.csv,
+      results/self_check.txt
 
-费用假设：OKX 全球站普通用户 taker——现货 0.10%、永续 0.05%（四腿各计一次）。
+v2 修正口径（风验收六项）：
+  1. 标记价格：资金费仓位价值与清算路径全部改用标记价格 1H 序列
+     （/api/v5/market/history-mark-price-candles）。OKX 规则：资金费 = 仓位价值 × 费率，
+     仓位价值按标记价格计（OKX 帮助中心《Perpetual funding fee mechanism》）；
+     逐仓资金费从该仓逐仓保证金扣除/计入（同上），本版据此建模，不再是未核实假设；
+     清算以标记价格判定、维持保证金率达 100% 触发（OKX 强平 FAQ 口径，本版用
+     权益 ≤ MMR×仓位价值 的等价判定，MMR 取 position-tiers 逐仓 1 档）。
+  2. 事件时间：K 线 ts 为小时开始时刻，close 为该小时结束时刻的价格。
+     事件时刻 e 的标记价格 = ts=e-1h 那根标记 K 线的 close。路径扫描只限 (T0, T1]。
+     T1 口径（全报告一致）：T1 时点先结算资金费，再按 T1 成交价退出；
+     资金费期数 = (T0, T1] 内结算期数。
+  3. 费用与资金来源：
+     - 现货买入手续费按计价规则从买入资产扣：净到手 = 毛数量×(1-现货费率)，
+       净敞口 = 永续数量 - 现货净到手数量，如实量化。
+     - 永续开仓费从保证金权益扣除（进入清算判定）；清算截断补强平费情景
+       （剩余权益的 0% / 100% 两档，不编造精确强平成交价）与现货退出费（卖出费+滑点）。
+     - 模式 B 的保证金 = 基础保证金 + (现金预留 - 费用预留 - 滑点预留)，被预留的
+       费用/滑点资金不再进入保证金，同一笔钱不重复使用；资金守恒逐模式×情景检查。
+  4. 表格：主表为 A/B 两模式各自的路径结果（截断或存活）；完整 90 天完好对冲
+     单独列为“忽略清算的反事实诊断”。运行成本并列 0 与 5 美元/月两情景
+     （5 美元是独占运行预算情景，非已证明的最低必要成本）。
+  5. 文字结论限定于本样本、本配置、本金与成本假设。
+  6. 自查新增：事件时间错位、T1 后扫描、清算后计入资金费、realizedRate 缺失、
+     滑点资金超支等检查；覆盖统计全部由数据生成，不硬编码。
+
+费用假设：OKX 全球站普通用户 taker——现货 0.10%、永续 0.05%。
 滑点假设：0/2/5/10 bps 单边按各腿名义价值计（假设，非实测）。
-保证金口径 A：逐仓，已划保证金 = 永续名义价值 35%，现金缓冲留在账户外待命；
-口径 B：现金缓冲预先全额划入保证金（总风险资金不变，只改变清算距离）。
+保证金：逐仓；模式 A 已划保证金 = 永续名义 35%，其余现金留作费用/滑点/缓冲；
+模式 B 在 A 基础上把费用/滑点预留之外的现金全部预划入保证金。
 """
 import csv, json, math, os, sys
 from datetime import datetime, timezone
@@ -39,14 +55,12 @@ PERP_TAKER = 0.0005
 MARGIN_FRAC = 0.35
 SLIPPAGES_BPS = [0, 2, 5, 10]
 CAPITALS = [100, 300, 1000]
-OPS_USD_PER_MONTH = 5.0
+HOUR_MS = 3600 * 1000
+OPS_SCENARIOS = [0.0, 5.0]           # 美元/月：0 与独占运行预算情景
 DAYS_PER_MONTH = 365 / 12
 
 def iso(ms):
     return datetime.fromtimestamp(int(ms) / 1000, tz=timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
-
-def ym(ms):
-    return datetime.fromtimestamp(int(ms) / 1000, tz=timezone.utc).strftime("%Y-%m")
 
 def load(name):
     return json.load(open(os.path.join(DATA, name)))
@@ -54,316 +68,517 @@ def load(name):
 insts = load("instruments.json")
 tiers = load("position_tiers.json")
 
-# ---------------- 自查（先于核算，失败即停） ----------------
 checks = []
 def check(name, cond, detail=""):
     checks.append((name, bool(cond), detail))
-    if not cond:
-        print(f"SELF-CHECK FAILED: {name} {detail}", file=sys.stderr)
 
-# 1) 资金费符号方向：正费率时空头应收钱。合成一笔：rate=+0.01%, qty=1, P=100 -> +0.01
-synthetic = 0.0001 * 1 * 100
-check("资金费符号方向（正费率空头收钱）", synthetic > 0, f"synthetic={synthetic}")
-# 核算函数同向验证在下方用真实数据再验（rate>0 的期数资金费贡献应为正）
-# 2) 合约单位换算：BTC ctVal=0.01 -> 100 张 = 1 BTC；ETH ctVal=0.1 -> 10 张 = 1 ETH
-check("合约单位换算 BTC", abs(100 * float(insts["BTC-USDT-SWAP"]["ctVal"]) - 1.0) < 1e-12)
-check("合约单位换算 ETH", abs(10 * float(insts["ETH-USDT-SWAP"]["ctVal"]) - 1.0) < 1e-12)
-
-# ---------------- 共同窗口 ----------------
-fund = {}
+# ---------- 原始数据加载 ----------
+fund_raw, fund = {}, {}
 for base in ["BTC", "ETH"]:
     rows = load(f"funding_{base}-USDT-SWAP.json")
-    fund[base] = {int(r["fundingTime"]): (float(r.get("realizedRate") or r["fundingRate"]),
-                                          float(r["fundingRate"])) for r in rows}
+    fund_raw[base] = rows
+    fund[base] = {int(r["fundingTime"]): r for r in rows}
+
+def candle_maps(inst_id):
+    rows = load(f"candles_{inst_id}.json")
+    return ({int(c[0]): float(c[1]) for c in rows},
+            {int(c[0]): float(c[4]) for c in rows})
+
+def mark_close_map(inst_id):
+    rows = load(f"mark_{inst_id}.json")
+    return {int(c[0]): float(c[4]) for c in rows}, rows
+
+marks, mark_rows = {}, {}
+trade = {}
+for base in ["BTC", "ETH"]:
+    marks[base], mark_rows[base] = mark_close_map(f"{base}-USDT-SWAP")
+    trade[base] = {"spot": candle_maps(f"{base}-USDT"),
+                   "perp": candle_maps(f"{base}-USDT-SWAP")}
+
+def mark_at(base, t_ms):
+    """事件时刻 t 的标记价格 = ts=t-1h 标记 K 线的 close（该小时结束价）。"""
+    return marks[base][t_ms - HOUR_MS]
+
+# ---------- 共同窗口 ----------
 common = sorted(set(fund["BTC"]) & set(fund["ETH"]))
 T1 = common[-1]
 T0 = min(t for t in common if t >= T1 - 90 * 24 * 3600 * 1000)
 SETTLES = [t for t in common if T0 < t <= T1]
 DAYS = (T1 - T0) / 86400000
-OPS_COST = OPS_USD_PER_MONTH * DAYS / DAYS_PER_MONTH
-check("共同窗口为 90 天", abs(DAYS - 90) < 1e-9, f"days={DAYS}")
-check("结算期数 = 270", len(SETTLES) == 270, f"n={len(SETTLES)}")
+EVENTS = [T0 + i * HOUR_MS for i in range(1, int((T1 - T0) // HOUR_MS) + 1)]  # (T0, T1]
 
-def candle_maps(inst_id):
-    rows = load(f"candles_{inst_id}.json")
-    opens = {int(c[0]): float(c[1]) for c in rows}
-    closes = {int(c[0]): float(c[4]) for c in rows}
-    return opens, closes
+# ---------- 自查：数据层 ----------
+check("资金费符号方向（正费率空头收钱）", 0.0001 * 1 * 100 > 0, "synthetic=0.01")
+check("合约单位换算 BTC", abs(100 * float(insts["BTC-USDT-SWAP"]["ctVal"]) - 1.0) < 1e-12)
+check("合约单位换算 ETH", abs(10 * float(insts["ETH-USDT-SWAP"]["ctVal"]) - 1.0) < 1e-12)
+# realizedRate 缺失必须报错，不许静默替代
+missing_rr = [(b, t) for b in ["BTC", "ETH"] for t in SETTLES
+              if fund[b][t].get("realizedRate") in (None, "")]
+check("窗口内 realizedRate 全部存在（缺失即中止）", not missing_rr, f"missing={missing_rr[:3]}")
+# 标记价格覆盖：每个结算时刻与每个事件时刻都必须有标记价
+mark_missing = [(b, t) for b in ["BTC", "ETH"] for t in set(SETTLES) | set(EVENTS)
+                if (t - HOUR_MS) not in marks[b]]
+check("标记价格覆盖全部结算/事件时刻", not mark_missing, f"missing={mark_missing[:3]}")
+for b in ["BTC", "ETH"]:
+    ts_sorted = sorted(marks[b])
+    exp = (ts_sorted[-1] - ts_sorted[0]) // HOUR_MS + 1
+    check(f"标记K线无缺口 {b}", exp == len(ts_sorted), f"n={len(ts_sorted)} expected={exp}")
+    ft = sorted(fund[b])
+    gaps = {ft[i + 1] - ft[i] for i in range(len(ft) - 1)}
+    check(f"资金费间隔单一(8h) {b}", gaps == {8 * HOUR_MS}, f"gaps={gaps}")
+# 事件时间映射：candle ts=h 的 close 对应事件时刻 h+1h
+_probe_ts = T0 - HOUR_MS
+check("事件时间映射（close 对应 ts+1h）",
+      mark_at("BTC", T0) == marks["BTC"][_probe_ts] and _probe_ts + HOUR_MS == T0)
+check("路径扫描范围 (T0, T1] 且计数=窗口小时数",
+      EVENTS[0] == T0 + HOUR_MS and EVENTS[-1] == T1 and len(EVENTS) == int(DAYS * 24),
+      f"n={len(EVENTS)}")
+
+RATES = {b: {t: float(fund[b][t]["realizedRate"]) for t in SETTLES} for b in ["BTC", "ETH"]}
+B_DEGEN = []   # 模式 B 现金池不足以覆盖费用+滑点预留、退化为 A 的情景（报告用）
 
 def run_symbol(base):
-    spot_id, perp_id = f"{base}-USDT", f"{base}-USDT-SWAP"
-    s_open, s_close = candle_maps(spot_id)
-    p_open, p_close = candle_maps(perp_id)
-    spec_s, spec_p = insts[spot_id], insts[perp_id]
+    spot_open, spot_close = trade[base]["spot"]
+    perp_open, perp_close = trade[base]["perp"]
+    spec_s, spec_p = insts[f"{base}-USDT"], insts[f"{base}-USDT-SWAP"]
     ct_val, lot_sz = float(spec_p["ctVal"]), float(spec_p["lotSz"])
     min_p, min_s = float(spec_p["minSz"]), float(spec_s["minSz"])
     mmr = float(tiers[f"{base}-USDT"][0]["mmr"])
-    S0, S1, P0, P1 = s_open[T0], s_open[T1], p_open[T0], p_open[T1]
-    rates = {t: fund[base][t][0] for t in SETTLES}
-    realized_differs = sum(1 for t in SETTLES if fund[base][t][0] != fund[base][t][1])
-
-    hours = sorted(t for t in p_close if T0 <= t <= T1)
-    out = {"base": base, "S0": S0, "S1": S1, "P0": P0, "P1": P1, "mmr": mmr,
-           "realized_differs": realized_differs, "rows": [], "monthly": []}
-    max_rise = max(p_close[t] / P0 - 1 for t in hours) * 100
-    out["max_rise_pct"] = max_rise
+    S0, P0 = spot_open[T0], perp_open[T0]
+    S1, P1 = spot_open[T1], perp_open[T1]
+    MK0 = mark_at(base, T0)
+    funding_by_t = {}   # 需 qty，先占位，qty 确定后填充（每档 qty 不同，逐档计算）
+    out = {"base": base, "S0": S0, "S1": S1, "P0": P0, "P1": P1, "MK0": MK0, "mmr": mmr,
+           "rows": [], "monthly": [], "counter": []}
+    max_rise_mark = max(mark_at(base, e) / MK0 - 1 for e in EVENTS) * 100
+    out["max_rise_pct"] = max_rise_mark
 
     for C in CAPITALS:
         denom = S0 * (1 + 2 * SPOT_TAKER) + P0 * (MARGIN_FRAC + 2 * PERP_TAKER)
         qty_target = C / denom
         contracts = math.floor((qty_target / ct_val) / lot_sz) * lot_sz
-        qty = contracts * ct_val
-        rounding_loss_notional = (qty_target - qty) * P0     # lotSz 取整未部署名义价值
+        qty = contracts * ct_val                       # 永续数量 = 现货毛数量
+        net_qty = qty * (1 - SPOT_TAKER)               # 现货买入费从资产扣后的净到手
+        residual = qty - net_qty                       # 残余净空头敞口（币）
         spot_n0, perp_n0 = qty * S0, qty * P0
-        spot_n1, perp_n1 = qty * S1, qty * P1
-        margin = MARGIN_FRAC * perp_n0
-        fee_reserve = spot_n0 * 2 * SPOT_TAKER + perp_n0 * 2 * PERP_TAKER
-        buffer = C - spot_n0 - margin - fee_reserve
-        feasible = contracts >= min_p and qty >= min_s and buffer >= 0
-        check(f"资金守恒 {base} {C}", spot_n0 + margin + fee_reserve + buffer <= C + 1e-6,
-              f"sum={spot_n0+margin+fee_reserve+buffer:.4f} C={C}")
+        marginA = MARGIN_FRAC * perp_n0
+        reserveA = C - spot_n0 - marginA               # 费用+滑点+缓冲的现金池（模式 A 的保证金外现金）
+        perp_open_fee = perp_n0 * PERP_TAKER
+        perp_close_fee_full = qty * P1 * PERP_TAKER
+        spot_sell_fee_full = net_qty * S1 * SPOT_TAKER
+        fees_est = perp_open_fee + perp_n0 * PERP_TAKER + net_qty * S0 * SPOT_TAKER  # 预留口径（开仓价估）
+        feasible_base = contracts >= min_p and qty >= min_s and reserveA >= fees_est
+        check(f"资金守恒 {base} {C}", abs(spot_n0 + marginA + reserveA - C) < 1e-6,
+              f"sum={spot_n0 + marginA + reserveA:.4f}")
+        check(f"现货净到手与残余敞口 {base} {C}",
+              abs(net_qty - qty * (1 - SPOT_TAKER)) < 1e-12 and residual > 0,
+              f"net={net_qty:.8f} residual={residual:.8f}")
+        check(f"四腿费用各计一次 {base} {C}",
+              perp_open_fee > 0 and perp_close_fee_full > 0 and spot_sell_fee_full > 0
+              and abs(qty * S0 * SPOT_TAKER - spot_n0 * SPOT_TAKER) < 1e-9)
 
-        # 逐期资金费（仓位价值随结算时价格变化）
-        funding_by_t = {t: rates[t] * qty * p_open[t] for t in SETTLES}
-        funding_total = sum(funding_by_t.values())
+        fbt = {t: RATES[base][t] * qty * mark_at(base, t) for t in SETTLES}
+        funding_total = sum(fbt.values())
         if C == CAPITALS[0]:
-            pos_contrib = sum(v for t, v in funding_by_t.items() if rates[t] > 0)
-            check(f"资金费方向真实数据 {base}", pos_contrib > 0, f"pos_contrib={pos_contrib:.3f}")
+            pos_c = sum(v for t, v in fbt.items() if RATES[base][t] > 0)
+            check(f"资金费方向真实数据 {base}", pos_c > 0, f"pos_contrib={pos_c:.3f}")
 
-        # 分腿损益
-        spot_leg = qty * (S1 - S0)
-        perp_leg = -qty * (P1 - P0)
-        basis_change = (S1 - P1) - (S0 - P0)     # 解释项：spot_leg+perp_leg == qty*basis_change
-        check(f"基差恒等式 {base} {C}", abs(spot_leg + perp_leg - qty * basis_change) < 1e-6)
-
-        # 四腿手续费（各计一次）
-        fee_legs = [spot_n0 * SPOT_TAKER, perp_n0 * PERP_TAKER,
-                    perp_n1 * PERP_TAKER, spot_n1 * SPOT_TAKER]
-        fees = sum(fee_legs)
-        check(f"四腿费用各一次 {base} {C}", len(fee_legs) == 4 and fees > 0)
-
-        # ---- 清算路径检查（1H 收盘，逐仓）----
-        def path_check(extra_margin):
-            cum_f = 0.0
-            fi = 0
-            settle_sorted = SETTLES
-            for t in hours:
-                while fi < len(settle_sorted) and settle_sorted[fi] <= t:
-                    cum_f += funding_by_t[settle_sorted[fi]]; fi += 1
-                P = p_close[t]
-                equity = margin + extra_margin + cum_f - qty * (P - P0)
-                if equity <= mmr * qty * P:
-                    return t, P, equity
-            return None
-        trigA = path_check(0.0)            # 口径 A：仅已划保证金
-        trigB = path_check(buffer)         # 口径 B：缓冲预划入
-
-        row = {"capital": C, "contracts": contracts, "qty": qty, "qty_target": qty_target,
-               "rounding_loss": rounding_loss_notional, "residual_delta": qty - qty,
-               "spot_n0": spot_n0, "perp_n0": perp_n0, "margin": margin,
-               "fee_reserve": fee_reserve, "buffer": buffer, "feasible": feasible,
-               "funding": funding_total, "spot_leg": spot_leg, "perp_leg": perp_leg,
-               "basis_change": basis_change, "fees": fees, "trigA": trigA, "trigB": trigB,
-               "nets": {}}
+        # 完好对冲（反事实诊断用）
+        spot_proceeds_full = net_qty * S1 * (1 - SPOT_TAKER)
+        spot_leg_full = spot_proceeds_full - spot_n0
+        perp_leg_full = -qty * (P1 - P0)
+        perp_fees_full = perp_open_fee + perp_close_fee_full
         for bps in SLIPPAGES_BPS:
             slip_in = (spot_n0 + perp_n0) * bps / 10000
-            slip_out = (spot_n1 + perp_n1) * bps / 10000
-            net = funding_total + spot_leg + perp_leg - fees - slip_in - slip_out
-            row["nets"][bps] = {"slip": slip_in + slip_out, "net": net,
-                                "net_after_ops": net - OPS_COST}
-        # 清算截断口径（口径 A 触发时）：触发时刻权益残值 + 现货市值 + 未用资金 − 本金
-        if trigA:
-            tt, p_trig, eq_left = trigA
-            s_trig = s_close[tt]   # 与永续同口径：触发小时收盘价，避免开/收盘时点错位
-            fund_until = sum(v for t, v in funding_by_t.items() if t <= tt)
-            entry_fees = fee_legs[0] + fee_legs[1]
-            entry_slip5 = (spot_n0 + perp_n0) * 5 / 10000
-            trunc_net = (qty * s_trig + eq_left + buffer + fee_reserve
-                         - entry_fees - entry_slip5 - C)
-            row["trunc"] = {"time": tt, "price": p_trig, "equity_left": eq_left,
-                            "funding_until": fund_until, "net": trunc_net}
-        out["rows"].append(row)
+            slip_out = (net_qty * S1 + qty * P1) * bps / 10000
+            net_cf = funding_total + spot_leg_full + perp_leg_full - perp_fees_full - slip_in - slip_out
+            out["counter"].append({"capital": C, "bps": bps, "funding": funding_total,
+                                    "spot_leg": spot_leg_full, "perp_leg": perp_leg_full,
+                                    "perp_fees": perp_fees_full, "slip": slip_in + slip_out,
+                                    "net": net_cf})
 
-        # ---- 月度分解（完好对冲口径，5 bps）----
-        months = {}
-        prev_s, prev_p = S0, P0
-        bounds = []
-        cur = T0
-        while cur < T1:
-            nxt = min([t for t in SETTLES if t > cur and ym(t) != ym(cur)] + [T1])
-            bounds.append((cur, nxt)); cur = nxt
-        for a, bnd in bounds:
-            f_m = sum(v for t, v in funding_by_t.items() if a < t <= bnd)
-            s_m = qty * (s_open[bnd] - prev_s); p_m = -qty * (p_open[bnd] - prev_p)
-            prev_s, prev_p = s_open[bnd], p_open[bnd]
-            fee_m = (fee_legs[0] + fee_legs[1]) if a == T0 else 0.0
-            fee_m += (fee_legs[2] + fee_legs[3]) if bnd == T1 else 0.0
-            slip_m = (spot_n0 + perp_n0) * 5 / 10000 if a == T0 else 0.0
-            slip_m += (spot_n1 + perp_n1) * 5 / 10000 if bnd == T1 else 0.0
-            ops_m = OPS_USD_PER_MONTH * ((bnd - a) / 86400000) / DAYS_PER_MONTH
-            net_m = f_m + s_m + p_m - fee_m - slip_m
-            seg_label = f"{iso(a)[:10]}→{iso(bnd)[:10]}"   # 用区间起止标注，避免同月两段互相覆盖
-            months[seg_label] = {"funding": f_m, "spot_leg": s_m, "perp_leg": p_m,
-                               "fees": fee_m, "slip": slip_m, "net": net_m,
-                               "ops": ops_m, "net_after_ops": net_m - ops_m}
-        out["monthly"].append({"capital": C, "months": months})
+        # ---- 路径模拟（模式 × 滑点）----
+        for mode in ["A", "B"]:
+            for bps in SLIPPAGES_BPS:
+                slip_in = (spot_n0 + perp_n0) * bps / 10000
+                slip_out_full = (net_qty * S1 + qty * P1) * bps / 10000
+                slip_total = slip_in + slip_out_full
+                # 资金来源口径：入场滑点是入场时点的现金需求，只能由保证金外现金池支付；
+                # 出场滑点与出场费用从出场款项中净扣（来源是出场款本身），不占用入场现金池。
+                # 模式 B 的预留额（费用+滑点）不得进入保证金，由下方守恒与预留检查把关。
+                if mode == "A":
+                    margin_posted, reserve_cash = marginA, reserveA
+                else:
+                    extra = max(reserveA - fees_est - slip_total, 0.0)
+                    margin_posted, reserve_cash = marginA + extra, reserveA - extra
+                    if extra == 0.0 and reserveA < fees_est + slip_total - 1e-9:
+                        B_DEGEN.append((base, C, bps, fees_est + slip_total - reserveA))
+                check(f"滑点资金来源充足(入场现金) {base} {C} {mode} {bps}bp",
+                      slip_in <= reserve_cash + 1e-9,
+                      f"slip_in={slip_in:.4f} source={reserve_cash:.4f}")
+                if mode == "B":
+                    check(f"模式B预留未进保证金 {base} {C} {bps}bp",
+                          abs(reserve_cash - (fees_est + slip_total)) < 1e-6 or extra == 0.0,
+                          f"reserve={reserve_cash:.4f} fees+slip={fees_est + slip_total:.4f}")
+                check(f"资金守恒 {base} {C} {mode} {bps}bp",
+                      abs(spot_n0 + margin_posted + reserve_cash - C) < 1e-6)
+                equity0 = margin_posted - perp_open_fee
+                cum_f, trig = 0.0, None
+                settle_idx = 0
+                for e in EVENTS:
+                    while settle_idx < len(SETTLES) and SETTLES[settle_idx] <= e:
+                        cum_f += fbt[SETTLES[settle_idx]]; settle_idx += 1
+                    mk = mark_at(base, e)
+                    equity = equity0 + cum_f - qty * (mk - MK0)
+                    if equity <= mmr * qty * mk:
+                        trig = (e, mk, equity, cum_f)
+                        break
+                if trig:
+                    e, mk_e, eq_left, fund_until = trig
+                    check(f"清算后不再计资金费 {base} {C} {mode} {bps}bp",
+                          abs(fund_until - sum(v for t, v in fbt.items() if t <= e)) < 1e-9
+                          and (e == T1 or fund_until <= funding_total + 1e-9),
+                          f"until={fund_until:.4f} total={funding_total:.4f}")
+                    s_exit = spot_close[e - HOUR_MS]
+                    slip_exit_spot = net_qty * s_exit * bps / 10000
+                    spot_proceeds = net_qty * s_exit * (1 - SPOT_TAKER) - slip_exit_spot
+                    spot_pnl = spot_proceeds - spot_n0
+                    reserve_left = reserve_cash - slip_in - slip_exit_spot
+                    nets = {}
+                    for liq_frac in [0.0, 1.0]:
+                        residual_margin = max(eq_left * (1 - liq_frac), 0.0)
+                        total_final = spot_proceeds + residual_margin + reserve_left
+                        nets[liq_frac] = total_final - C
+                    out["rows"].append({
+                        "capital": C, "mode": mode, "bps": bps, "feasible": feasible_base,
+                        "contracts": contracts, "qty": qty, "net_qty": net_qty, "residual": residual,
+                        "spot_n0": spot_n0, "perp_n0": perp_n0, "margin_posted": margin_posted,
+                        "reserve_cash": reserve_cash, "fees_est": fees_est,
+                        "outcome": "liquidated", "exit_time": e, "funding": fund_until,
+                        "spot_leg": spot_pnl, "eq_left": eq_left,
+                        "net_liq0": nets[0.0], "net_liqfull": nets[1.0]})
+                else:
+                    net_cf = [c for c in out["counter"] if c["capital"] == C and c["bps"] == bps][0]["net"]
+                    out["rows"].append({
+                        "capital": C, "mode": mode, "bps": bps, "feasible": feasible_base,
+                        "contracts": contracts, "qty": qty, "net_qty": net_qty, "residual": residual,
+                        "spot_n0": spot_n0, "perp_n0": perp_n0, "margin_posted": margin_posted,
+                        "reserve_cash": reserve_cash, "fees_est": fees_est,
+                        "outcome": "survived", "exit_time": T1, "funding": funding_total,
+                        "spot_leg": spot_leg_full, "eq_left": None,
+                        "net_liq0": net_cf, "net_liqfull": net_cf})
+        # ---- 月度分解（5 bps，模式 A/B，路径口径）----
+        for mode in ["A", "B"]:
+            bps = 5
+            slip_in = (spot_n0 + perp_n0) * bps / 10000
+            slip_out_full = (net_qty * S1 + qty * P1) * bps / 10000
+            slip_total = slip_in + slip_out_full
+            if mode == "A":
+                margin_posted, reserve_cash = marginA, reserveA
+            else:
+                extra = max(reserveA - fees_est - slip_total, 0.0)
+                margin_posted, reserve_cash = marginA + extra, reserveA - extra
+            equity0 = margin_posted - perp_open_fee
+            # 先定位触发点（与主模拟同口径）
+            cum_f, trig_e, trig_eq = 0.0, None, None
+            si = 0
+            fbt_cum = {}
+            for e in EVENTS:
+                while si < len(SETTLES) and SETTLES[si] <= e:
+                    cum_f += fbt[SETTLES[si]]; si += 1
+                fbt_cum[e] = cum_f
+                mk = mark_at(base, e)
+                equity = equity0 + cum_f - qty * (mk - MK0)
+                if trig_e is None and equity <= mmr * qty * mk:
+                    trig_e, trig_eq = e, equity
+            def portfolio_value(x, after_exit=False):
+                """时点 x 的组合价值：现货净数量×现货价 + 保证金权益(标记) + 现金池余额。
+                x 为结算时刻（用开盘成交价）；触发退出后用触发口径。"""
+                if trig_e is not None and x >= trig_e:
+                    e = trig_e
+                    s_exit = spot_close[e - HOUR_MS]
+                    slip_exit_spot = net_qty * s_exit * bps / 10000
+                    proceeds = net_qty * s_exit * (1 - SPOT_TAKER) - slip_exit_spot
+                    return proceeds + max(trig_eq, 0.0) + (reserve_cash - slip_in - slip_exit_spot)
+                if after_exit and x == T1:
+                    proceeds = net_qty * S1 * (1 - SPOT_TAKER)
+                    margin_final = (margin_posted - perp_open_fee + funding_total
+                                    - qty * (P1 - P0) - perp_close_fee_full)
+                    return proceeds + margin_final + (reserve_cash - slip_in - slip_out_full)
+                cumx = fbt_cum.get(x, 0.0)
+                if x == T0:
+                    cumx = 0.0
+                eq = equity0 + cumx - qty * (mark_at(base, x) - MK0) if x > T0 else equity0
+                return net_qty * spot_open[x] + eq + reserve_cash - (slip_in if x > T0 else 0.0)
+            bounds = [T0]
+            cur = T0
+            while cur < T1:
+                nxt = min([t for t in SETTLES if t > cur and
+                           datetime.fromtimestamp(t / 1000, tz=timezone.utc).strftime("%Y-%m")
+                           != datetime.fromtimestamp(cur / 1000, tz=timezone.utc).strftime("%Y-%m")] + [T1])
+                bounds.append(nxt); cur = nxt
+            segs = {}
+            for a, b in zip(bounds, bounds[1:]):
+                label = f"{iso(a)[:10]}→{iso(b)[:10]}"
+                dead = trig_e is not None and a >= trig_e
+                if dead:
+                    segs[label] = {"funding": 0.0, "price_pnl": 0.0, "fees": 0.0, "slip": 0.0,
+                                   "net": 0.0,
+                                   "ops": {o: o * ((b - a) / 86400000) / DAYS_PER_MONTH for o in OPS_SCENARIOS},
+                                   "status": "liquidated_no_position"}
+                    continue
+                f_seg = sum(v for t, v in fbt.items() if a < t <= b and (trig_e is None or t <= trig_e))
+                v_a = C if a == T0 else portfolio_value(a)
+                v_b = portfolio_value(b, after_exit=(b == T1 and trig_e is None))
+                net_seg = v_b - v_a
+                fee_seg = perp_open_fee if a == T0 else 0.0
+                if trig_e is None and b == T1:
+                    fee_seg += perp_close_fee_full
+                slip_seg = slip_in if a == T0 else 0.0
+                if trig_e is not None and a < trig_e <= b:
+                    slip_seg += net_qty * spot_close[trig_e - HOUR_MS] * bps / 10000
+                elif trig_e is None and b == T1:
+                    slip_seg += slip_out_full
+                price_seg = net_seg - f_seg + fee_seg + slip_seg
+                ops_seg = {o: o * ((b - a) / 86400000) / DAYS_PER_MONTH for o in OPS_SCENARIOS}
+                segs[label] = {"funding": f_seg, "price_pnl": price_seg, "fees": fee_seg,
+                               "slip": slip_seg, "net": net_seg, "ops": ops_seg,
+                               "status": "liquidated_in_segment" if (trig_e is not None and a < trig_e <= b) else "active"}
+            out["monthly"].append({"capital": C, "mode": mode, "months": segs})
     return out
 
 results = [run_symbol("BTC"), run_symbol("ETH")]
 
-# 自查输出
+# ---------- 自查输出（失败即中止，不产出结果表） ----------
 with open(os.path.join(RES, "self_check.txt"), "w") as f:
-    f.write("benchmark.py 自查结果\n")
+    f.write("benchmark.py 自查结果（风验收修正版 v2）\n")
     for name, ok, detail in checks:
         f.write(f"[{'PASS' if ok else 'FAIL'}] {name} {detail}\n")
     f.write(f"总计 {sum(1 for _, ok, _ in checks if ok)}/{len(checks)} 通过\n")
 failed = [c for c in checks if not c[1]]
 print(f"self-checks: {len(checks) - len(failed)}/{len(checks)} pass")
 if failed:
+    for name, _, detail in failed:
+        print(f"FAILED: {name} {detail}", file=sys.stderr)
     sys.exit(1)
 
-# ---------------- CSV ----------------
+OPS = {o: o * DAYS / DAYS_PER_MONTH for o in OPS_SCENARIOS}
+
+# ---------- CSV：主表（路径结果） ----------
 with open(os.path.join(RES, "benchmark_table.csv"), "w", newline="") as f:
     w = csv.writer(f)
-    w.writerow(["symbol", "capital", "feasible", "contracts", "qty", "rounding_loss_notional",
-                "residual_delta_base", "spot_notional", "perp_notional", "margin", "buffer",
-                "funding", "spot_leg_pnl", "perp_leg_pnl", "fees", "slippage_bps", "slippage",
-                "trade_net", "ops_cost_90d", "net_after_ops", "liq_trigger_margin_only",
-                "liq_trigger_with_buffer"])
+    w.writerow(["symbol", "capital", "mode", "slippage_bps", "feasible", "contracts", "qty_perp",
+                "qty_spot_net", "residual_delta_base", "residual_notional_usdt", "spot_notional",
+                "perp_notional", "margin_posted", "reserve_cash", "fees_est", "outcome",
+                "exit_event_utc", "funding_received", "spot_leg_pnl", "margin_equity_left",
+                "trade_net_liqfee0", "trade_net_liqfee_full_equity",
+                "ops_cost_0", "net_ops0_range", "ops_cost_5usd_scenario", "net_ops5_range"])
     for r in results:
         for row in r["rows"]:
-            for bps in SLIPPAGES_BPS:
-                n = row["nets"][bps]
-                w.writerow([r["base"], row["capital"], row["feasible"], row["contracts"],
-                            f"{row['qty']:.8f}", f"{row['rounding_loss']:.4f}", f"{row['residual_delta']:.8f}",
-                            f"{row['spot_n0']:.2f}", f"{row['perp_n0']:.2f}", f"{row['margin']:.2f}",
-                            f"{row['buffer']:.2f}", f"{row['funding']:.4f}", f"{row['spot_leg']:.4f}",
-                            f"{row['perp_leg']:.4f}", f"{row['fees']:.4f}", bps, f"{n['slip']:.4f}",
-                            f"{n['net']:.4f}", f"{OPS_COST:.2f}", f"{n['net_after_ops']:.4f}",
-                            iso(row["trigA"][0]) if row["trigA"] else "",
-                            iso(row["trigB"][0]) if row["trigB"] else ""])
+            lo = min(row["net_liq0"], row["net_liqfull"]); hi = max(row["net_liq0"], row["net_liqfull"])
+            w.writerow([r["base"], row["capital"], row["mode"], row["bps"], row["feasible"],
+                        row["contracts"], f"{row['qty']:.8f}", f"{row['net_qty']:.8f}",
+                        f"{row['residual']:.8f}", f"{row['residual'] * r['P0']:.4f}",
+                        f"{row['spot_n0']:.2f}", f"{row['perp_n0']:.2f}", f"{row['margin_posted']:.2f}",
+                        f"{row['reserve_cash']:.2f}", f"{row['fees_est']:.2f}", row["outcome"],
+                        iso(row["exit_time"]), f"{row['funding']:.4f}", f"{row['spot_leg']:.4f}",
+                        f"{row['eq_left']:.4f}" if row["eq_left"] is not None else "",
+                        f"{row['net_liq0']:.4f}", f"{row['net_liqfull']:.4f}",
+                        "0.00", f"{lo:.4f}..{hi:.4f}", f"{OPS[5.0]:.2f}", f"{lo - OPS[5.0]:.4f}..{hi - OPS[5.0]:.4f}"])
 
+# ---------- CSV：反事实诊断 ----------
+with open(os.path.join(RES, "counterfactual_table.csv"), "w", newline="") as f:
+    w = csv.writer(f)
+    w.writerow(["symbol", "capital", "slippage_bps", "funding", "spot_leg_pnl", "perp_leg_pnl",
+                "perp_fees", "slippage", "trade_net", "net_ops0", "net_ops5"])
+    for r in results:
+        for c in r["counter"]:
+            w.writerow([r["base"], c["capital"], c["bps"], f"{c['funding']:.4f}", f"{c['spot_leg']:.4f}",
+                        f"{c['perp_leg']:.4f}", f"{c['perp_fees']:.4f}", f"{c['slip']:.4f}",
+                        f"{c['net']:.4f}", f"{c['net']:.4f}", f"{c['net'] - OPS[5.0]:.4f}"])
+
+# ---------- CSV：月度（路径口径，5bps） ----------
 with open(os.path.join(RES, "monthly_breakdown.csv"), "w", newline="") as f:
     w = csv.writer(f)
-    w.writerow(["symbol", "capital", "month", "funding", "spot_leg", "perp_leg", "fees",
-                "slippage_5bps", "trade_net", "ops_cost", "net_after_ops"])
+    w.writerow(["symbol", "capital", "mode", "segment", "status", "funding", "price_pnl_combined",
+                "fees", "slippage", "trade_net", "ops_cost_0", "net_ops0", "ops_cost_5usd", "net_ops5"])
     for r in results:
         for m in r["monthly"]:
-            for mk in sorted(m["months"]):
-                v = m["months"][mk]
-                w.writerow([r["base"], m["capital"], mk, f"{v['funding']:.4f}", f"{v['spot_leg']:.4f}",
-                            f"{v['perp_leg']:.4f}", f"{v['fees']:.4f}", f"{v['slip']:.4f}",
-                            f"{v['net']:.4f}", f"{v['ops']:.4f}", f"{v['net_after_ops']:.4f}"])
+            for label in sorted(m["months"]):
+                v = m["months"][label]
+                w.writerow([r["base"], m["capital"], m["mode"], label, v["status"], f"{v['funding']:.4f}",
+                            f"{v['price_pnl']:.4f}", f"{v['fees']:.4f}", f"{v['slip']:.4f}", f"{v['net']:.4f}",
+                            "0.0000", f"{v['net']:.4f}", f"{v['ops'][5.0]:.4f}", f"{v['net'] - v['ops'][5.0]:.4f}"])
+print("tables written")
+for r in results:
+    for row in r["rows"]:
+        if row["bps"] == 5:
+            print(r["base"], row["capital"], row["mode"], row["outcome"], iso(row["exit_time"]),
+                  "fund", round(row["funding"], 2), "net0", round(row["net_liq0"], 2),
+                  "netFull", round(row["net_liqfull"], 2))
 
-# ---------------- 报告 ----------------
+# ---------- 报告 ----------
+cov = {}
+for b in ["BTC", "ETH"]:
+    fr = fund_raw[b]
+    cov[b] = {"fund_n": len(fr), "fund_first": int(fr[0]["fundingTime"]), "fund_last": int(fr[-1]["fundingTime"]),
+              "mark_n": len(mark_rows[b]),
+              "candles": {i: len(load(f"candles_{i}.json")) for i in [f"{b}-USDT", f"{b}-USDT-SWAP"]},
+              "pos": sum(1 for t in SETTLES if RATES[b][t] > 0),
+              "neg": sum(1 for t in SETTLES if RATES[b][t] < 0)}
+n_checks, n_pass = len(checks), len(checks) - len(failed)
+
 L = []
-L.append("# KB 第一轮核算 · 阶段 1 报告（Issue #1 补充规格版）\n")
+L.append("# KB 第一轮核算 · 阶段 1 报告（风验收修正版 v2）\n")
 L.append("> 性质：**事后会计核算**（固定持有基准），不是预测性回测；不含任何择时结论。"
-         "全程研究与模拟，未下真实订单，未用任何账户密钥。\n")
-L.append("## 运行与文件\n")
-L.append("- 运行命令：`python3 scripts/pull_data.py && python3 scripts/benchmark.py`（Python 标准库，顺序可复现，重复运行结果一致）")
-L.append("- 文件：`scripts/pull_data.py`、`scripts/benchmark.py`、`data/`（原始 JSON/CSV + `MANIFEST.md`）、"
-         "`results/benchmark_table.csv`、`results/monthly_breakdown.csv`、`results/self_check.txt`、本报告。\n")
-L.append(f"## 样本窗口（两币种共同窗口）\n\n建仓 {iso(T0)} → 平仓 {iso(T1)}，共 {DAYS:.0f} 天、{len(SETTLES)} 期结算。"
-         f"自查 {len(checks) - len(failed)}/{len(checks)} 项全过（资金费符号、单位换算、资金守恒、四腿费用、基差恒等式等，见 `results/self_check.txt`）。\n")
-L.append("## 数据覆盖\n")
-L.append("| 数据 | 覆盖 | 条数 | 检查 |")
-L.append("|---|---|---|---|")
-L.append("| 资金费率 BTC/ETH | 2026-08-17 16:00 UTC → 2026-11-17 08:00 UTC（原始拉取） | 各 276 期（核算窗口内 270 期） | 间隔全为 8h、无缺口、无重复；realizedRate 与 fundingRate 在本样本内无差异（核算仍优先用 realizedRate） |")
-L.append("| 1H K线 现货+永续 ×2 | 2026-08-18 00:00 UTC → 拉取时点 | 各 2200 根 | 缺失小时 0 |")
-L.append("| 规格/档位 | 拉取时点 | — | BTC 永续 ctVal=0.01、ETH=0.1；逐仓 1 档 MMR 两合约均 0.4%（来源：OKX 官方 `/api/v5/public/position-tiers`） |\n")
+         "全程研究与模拟，未下真实订单，未用任何账户密钥。结论仅适用于本样本、本配置、"
+         "本金档位与下列成本假设，不外推到其他结构或时期。\n")
+L.append("## 复现与文件\n")
+L.append("- 复现命令（冻结数据）：`python3 scripts/benchmark.py`")
+L.append("- 数据更新命令（会改变样本）：`python3 scripts/pull_data.py`；只补标记价格："
+         "`python3 scripts/pull_data.py --only-mark --start-ms <T0> --end-ms <T1>`")
+L.append(f"- 自查 {n_pass}/{n_checks} 项全过（见 `results/self_check.txt`）。文件：`scripts/`、`data/`"
+         "（原始 JSON/CSV + `MANIFEST.md`，请求逐条记录）、`results/benchmark_table.csv`（主表·路径结果）、"
+         "`results/monthly_breakdown.csv`、`results/counterfactual_table.csv`（反事实诊断）、本报告。\n")
+L.append("## 口径与约定（v2）\n")
+L.append("- **标记价格**：资金费逐期 = 实际结算费率 × 数量 × 结算时刻标记价格；清算路径用标记价格 1H 序列判定。"
+         "事件时刻 e 的标记价格取 ts=e−1h 标记 K 线的 close（K 线 ts 是小时开始时刻，close 是该小时结束价）。")
+L.append("- **T1 顺序**：T1 时点先结算资金费、再按 T1 成交价退出；资金费期数 = (T0, T1] 内的结算期数；"
+         "路径扫描只限事件时刻 (T0, T1]，触发时刻按收盘对应时刻标注。")
+L.append("- **费用**：现货买入费从买入资产中扣除（净到手 = 毛数量×(1−0.10%)），残余净空头敞口如实列示；"
+         "永续开仓费从保证金权益中扣除后参与清算判定；现货卖出费从卖出款中净扣；永续平仓费（存活口径）按平仓名义计。")
+L.append("- **保证金模式**：逐仓。A = 保证金为永续名义的 35%、其余现金在保证金外；"
+         "B = 在 A 基础上把现金池扣除费用预留与滑点预留后的余额全额预划入保证金（同一笔钱不重复使用，逐情景验守恒）。"
+         "滑点资金来源口径：入场滑点由保证金外现金池支付并逐情景检查；出场滑点与出场费用从出场款项净扣，不占用入场现金池。")
+L.append("- **清算截断**：触发后现货按触发小时收盘成交价退出（计卖出费与现货退出滑点）；保证金剩余权益按强平费"
+         "占剩余权益 0% / 100% 两档情景给出净额区间，不编造精确强平成交价；触发后不再计入任何资金费。"
+         "逐仓损失以已划保证金为上限：若小时收盘权益已跳至负值，剩余权益按 0 计、缺口不由组合另行赔付"
+         "（模型假设；此时强平费两档情景无差异）。触发事件为 1H 收盘代理，盘中实际触发点可能更早，"
+         "现货退出价与剩余权益随之不同，误差方向不保证单向。")
+L.append("- **运行成本**：并列 0 与 5 美元/月两情景；5 美元是独占运行预算情景（按样本天数折算 "
+         f"90 天 = ${OPS[5.0]:.2f}，USD≈USDT），不是已证明的最低必要成本。")
+L.append("- **规则依据**：OKX 帮助中心《Perpetual funding fee mechanism》——资金费 = 仓位价值 × 费率、"
+         "仓位价值按标记价格计、逐仓资金费从该仓逐仓保证金扣除/计入；强平以标记价格与维持保证金率判定"
+         "（OKX 强平 FAQ 口径，本版用权益 ≤ MMR×仓位价值等价判定，MMR 取官方 position-tiers 接口逐仓 1 档）。"
+         "历史样本沿用现行规则，属假设并在此标明。\n")
+L.append(f"## 样本窗口与数据覆盖（全部由数据生成）\n")
+L.append(f"共同窗口：建仓 {iso(T0)} → 平仓 {iso(T1)}，共 {DAYS:.0f} 天、{len(SETTLES)} 期结算。\n")
+L.append("| 数据 | 条数 | 首条 | 末条 | 检查 |")
+L.append("|---|---|---|---|---|")
+for b in ["BTC", "ETH"]:
+    c = cov[b]
+    L.append(f"| 资金费率 {b} | {c['fund_n']} | {iso(c['fund_first'])} | {iso(c['fund_last'])} | 间隔全 8h、无缺口无重复；窗口内正费率 {c['pos']} 期 / 负费率 {c['neg']} 期 |")
+    L.append(f"| 标记价格 1H {b} | {c['mark_n']} | — | — | 覆盖全部结算与事件时刻、无缺口（close = 小时结束标记价） |")
+    L.append(f"| 成交K线 1H {b} 现货/永续 | {c['candles'][b + '-USDT']} / {c['candles'][b + '-USDT-SWAP']} | — | — | 仅用于成交价（建仓/平仓/现货退出）与月度分腿 |")
+L.append(f"| 规格/档位 | — | — | — | BTC 永续 ctVal=0.01、ETH=0.1；逐仓 1 档 MMR 两合约均 "
+         f"{results[0]['mmr']:.1%}（OKX `/api/v5/public/position-tiers`） |\n")
 
 for r in results:
-    L.append(f"## {r['base']} 结果\n")
-    L.append(f"建仓：现货 {r['S0']:,.2f} / 永续 {r['P0']:,.2f}；平仓：现货 {r['S1']:,.2f} / 永续 {r['P1']:,.2f}。"
-             f"基差由 {r['S0']-r['P0']:+,.2f} 变为 {r['S1']-r['P1']:+,.2f}（解释项，不单独计入损益）。"
-             f"窗口内永续 1H 收盘最大涨幅（相对建仓价）{r['max_rise_pct']:.1f}%。\n")
-    L.append("资金分配表（总本金不重复使用；残余 delta 敞口 = 现货币数 − 永续币数 = 0，因现货量由张数×ctVal 反推）：\n")
-    L.append("| 本金 | 可行 | 张数 | 数量(币) | lotSz舍入未部署名义 | 现货名义 | 永续名义 | 保证金(35%) | 费用预留 | 现金缓冲 |")
-    L.append("|---|---|---|---|---|---|---|---|---|---|")
-    for row in r["rows"]:
-        L.append(f"| {row['capital']} | {'是' if row['feasible'] else '否'} | {row['contracts']:.2f} | {row['qty']:.6f} | "
-                 f"{row['rounding_loss']:.2f} | {row['spot_n0']:.2f} | {row['perp_n0']:.2f} | {row['margin']:.2f} | "
-                 f"{row['fee_reserve']:.2f} | {row['buffer']:.2f} |")
-    L.append("")
-    L.append("交易净收益与扣运行成本后净收益（完好对冲口径；运行成本 90 天 = "
-             f"${OPS_COST:.2f}，$5/月折算，USD≈USDT）：\n")
-    L.append("| 本金 | 滑点(bps) | 资金费 | 现货腿 | 永续腿 | 手续费 | 滑点 | 交易净收益 | 扣运行成本后 |")
+    b = r["base"]
+    L.append(f"## {b} 结果\n")
+    L.append(f"建仓成交价：现货 {r['S0']:,.2f} / 永续 {r['P0']:,.2f}（标记 {r['MK0']:,.2f}）；"
+             f"平仓成交价：现货 {r['S1']:,.2f} / 永续 {r['P1']:,.2f}。基差（现货−永续成交价）由 "
+             f"{r['S0'] - r['P0']:+,.2f} 变为 {r['S1'] - r['P1']:+,.2f}（解释项，不单独计入损益）。"
+             f"窗口内标记价格相对建仓标记最大涨幅 {r['max_rise_pct']:.1f}%。\n")
+    row1000 = [x for x in r["rows"] if x["capital"] == 1000 and x["bps"] == 5]
+    alloc = {x["mode"]: x for x in row1000}
+    L.append("资金分配表（1000 档示例，滑点 5 bps；全档位见主表 CSV）：\n")
+    L.append("| 模式 | 张数 | 永续数量 | 现货净到手 | 残余敞口(币) | 现货名义 | 保证金 | 现金池 | 费用预留 |")
     L.append("|---|---|---|---|---|---|---|---|---|")
-    for row in r["rows"]:
-        for bps in SLIPPAGES_BPS:
-            n = row["nets"][bps]
-            L.append(f"| {row['capital']} | {bps} | {row['funding']:+.3f} | {row['spot_leg']:+.3f} | {row['perp_leg']:+.3f} | "
-                     f"-{row['fees']:.3f} | -{n['slip']:.3f} | **{n['net']:+.3f}** | **{n['net_after_ops']:+.3f}** |")
+    for m in ["A", "B"]:
+        x = alloc[m]
+        L.append(f"| {m} | {x['contracts']:.2f} | {x['qty']:.6f} | {x['net_qty']:.6f} | {x['residual']:.6f} | "
+                 f"{x['spot_n0']:.2f} | {x['margin_posted']:.2f} | {x['reserve_cash']:.2f} | {x['fees_est']:.2f} |")
     L.append("")
-    # 清算路径
-    row0 = r["rows"][2]
-    if row0["trigA"]:
-        tr = row0["trunc"]
-        L.append(f"**清算路径检查（重要）**：口径 A（仅 35% 已划保证金、缓冲不划入）下，逐仓空头在 "
-                 f"**{iso(tr['time'])}**（永续价 {tr['price']:,.1f}）触发清算判定（1H 收盘口径，MMR 0.4%）。"
-                 f"三档同比例配置，触发时点相同。截断口径：截至触发时资金费 {tr['funding_until']:+.3f}（1000 档），"
-                 f"组合净额（现货按触发时市价计、含未用资金、扣建仓费与建仓滑点 5bps、未计强平费与现货卖出费）约 "
-                 f"**{tr['net']:+.2f} USDT（1000 档）**；触发之后不再按完好对冲计。上表完好对冲数字在口径 A 下**不可实现**。")
-    else:
-        L.append("**清算路径检查**：口径 A 下未触发清算（1H 收盘口径）。")
-    if row0["trigB"]:
-        L.append(f"口径 B（缓冲预划入保证金）在 {iso(row0['trigB'][0])} 仍触发清算——完好对冲数字两种口径下均不可实现。")
-    else:
-        L.append("口径 B（开仓时把现金缓冲全额预划入保证金，总资金不变）下**未触发**清算，上表完好对冲数字在口径 B 下成立。"
-                 "**声明：1H 频率不能排除盘中（小时内高点）清算；口径 B 的代价是缓冲不再能挪作他用，且需要开仓即全额划入的纪律。**")
+    L.append("主结果（路径口径，滑点 5 bps；净额区间 = 强平费占剩余权益 0%→100%）：\n")
+    L.append("| 本金 | 模式 | 结果 | 退出时刻(UTC) | 资金费(截至退出) | 交易净额区间 | 扣运行成本后(0 / 5美元情景) |")
+    L.append("|---|---|---|---|---|---|---|")
+    for x in sorted([y for y in r["rows"] if y["bps"] == 5], key=lambda z: (z["capital"], z["mode"])):
+        lo = min(x["net_liq0"], x["net_liqfull"]); hi = max(x["net_liq0"], x["net_liqfull"])
+        oc = "存活至 T1" if x["outcome"] == "survived" else "清算截断"
+        L.append(f"| {x['capital']} | {x['mode']} | {oc} | {iso(x['exit_time'])} | {x['funding']:+.3f} | "
+                 f"{lo:+.3f} .. {hi:+.3f} | {lo:+.3f}..{hi:+.3f} / {lo - OPS[5.0]:+.3f}..{hi - OPS[5.0]:+.3f} |")
     L.append("")
-    # 月度分解（1000 档）
-    m1000 = [m for m in r["monthly"] if m["capital"] == 1000][0]["months"]
-    L.append("月度分解（1000 档，完好对冲口径，滑点 5 bps；按自然月切分区间，全档位见 `results/monthly_breakdown.csv`）：\n")
-    L.append("| 区间 | 资金费 | 现货腿 | 永续腿 | 费用+滑点 | 交易净收益 | 运行成本 | 扣成本后 |")
-    L.append("|---|---|---|---|---|---|---|---|")
-    for mk in sorted(m1000):
-        v = m1000[mk]
-        L.append(f"| {mk} | {v['funding']:+.3f} | {v['spot_leg']:+.3f} | {v['perp_leg']:+.3f} | "
-                 f"-{v['fees']+v['slip']:.3f} | {v['net']:+.3f} | -{v['ops']:.2f} | {v['net_after_ops']:+.3f} |")
-    L.append("")
+    for m in ["A", "B"]:
+        mm = [x for x in r["monthly"] if x["capital"] == 1000 and x["mode"] == m][0]["months"]
+        L.append(f"月度分解（1000 档，模式 {m}，路径口径，滑点 5 bps；强平费按 0% 档计）：\n")
+        L.append("| 区间 | 状态 | 资金费 | 价格损益(两腿合计) | 费用 | 滑点 | 交易净收益 | 扣成本后(5美元情景) |")
+        L.append("|---|---|---|---|---|---|---|---|")
+        for label in sorted(mm):
+            v = mm[label]
+            L.append(f"| {label} | {v['status']} | {v['funding']:+.3f} | {v['price_pnl']:+.3f} | -{v['fees']:.3f} | "
+                     f"-{v['slip']:.3f} | {v['net']:+.3f} | {v['net'] - v['ops'][5.0]:+.3f} |")
+        L.append("")
 
+L.append("## 反事实诊断（忽略清算的完整 90 天完好对冲，仅作对照，不是主结果）\n")
+L.append("| 币种 | 本金 | 滑点(bps) | 资金费(标记价口径) | 交易净收益 | 扣成本后(5美元情景) |")
+L.append("|---|---|---|---|---|---|")
+for r in results:
+    for c in r["counter"]:
+        if c["capital"] == 1000:
+            L.append(f"| {r['base']} | 1000 | {c['bps']} | {c['funding']:+.3f} | {c['net']:+.3f} | {c['net'] - OPS[5.0]:+.3f} |")
+L.append("")
+_cf = {(r["base"], c["bps"]): c["net"] for r in results for c in r["counter"] if c["capital"] == 1000}
 L.append("## 敏感性说明\n")
-L.append("- **运行成本是小本金的主导变量**：90 天运行成本 $14.79，与本金无关。交易净收益（5bps）100 档 BTC +0.94 / ETH +0.70，"
-         "扣运行成本后约 **−13.85 / −14.10**；300 档扣成本后仍为负；1000 档扣成本后 BTC −5.00 / ETH −7.74，**仍为负**。"
-         "即本窗口内，固定持有在任何一档都覆盖不了 $5/月的专属运行成本（且这还没算 ETH 口径下中途清算的截断损失）。")
-L.append("- **保证金口径决定生死**：BTC 在口径 A 下被 9 月上涨路径击穿、口径 B（缓冲全额预划入）幸存；ETH 连口径 B 也被击穿。"
-         "截断时点按触发小时收盘价计，组合净额仍是小额正数（现货腿涨幅对冲了永续权益损失的大部分，1000 档 BTC +3.77 / ETH +2.50，"
-         "未计强平费与现货卖出费）——真正的损失不是爆仓本身，而是策略在第 23 天（ETH）/第 33 天（BTC）就死亡，"
-         "剩余约 60–70 天的资金费收入全部落空，且盘中基差张开时真实结果会比 1H 收盘口径更差。"
-         "提高已划保证金比例可避免触发，但会同比例压低可部署名义价值与资金费收入。")
-L.append("- **费率表敏感**：若实际账户适用美国表（现货 taker 0.35%），四腿费用约增至 3 倍，1000 档交易净收益将再减约 4–5 USDT；"
-         "若能以 maker 成交（0.08%/0.02%），费用约减半。本基准用全球表 taker，属中间情形。")
-L.append("- **滑点敏感**：0→10 bps 使 1000 档净收益减少约 5.9（BTC）/5.8（ETH）USDT，与资金费收入同量级——滑点实测是下一步的硬缺口。")
-_pos = {r["base"]: (sum(1 for t in SETTLES if fund[r["base"]][t][0] > 0),
-                     sum(1 for t in SETTLES if fund[r["base"]][t][0] < 0)) for r in results}
-L.append(f"- **资金费环境敏感**：本窗口正费率期占多数（BTC {_pos['BTC'][0]} 正/{_pos['BTC'][1]} 负、"
-         f"ETH {_pos['ETH'][0]} 正/{_pos['ETH'][1]} 负，共 270 期）；费率转负的环境里固定持有是净支出，"
-         "本核算不回答何时该空仓。\n")
-
-L.append("## 初步建议（供风验收）\n")
-L.append("1. **固定持有基准在小本金下不成立**：三档扣运行成本后均为负；且 35% 保证金口径下 BTC 会中途清算。"
-         "这条“无脑常驻收资金费”的路线，按本窗口证据应**停止**，除非改变至少一个结构变量（本金量级、保证金口径、只在高费率期运行）。")
-L.append("2. 若继续，下一阶段（前向采集）的核心问题应是：结算前可见的预测费率快照能否支持“只在高费率期持有”，"
-         "把收入集中、把运行成本摊薄；同时必须实测滑点与盘中清算距离。本报告不预判其结果。")
-L.append("3. 服务器暂缓的判断被本结果支持：连策略毛收益都覆盖不了 $5/月时，先不产生这笔固定成本是对的。\n")
-
+L.append(f"- **运行成本情景**：交易净额对运行成本 1:1 敏感。5 美元/月情景下 90 天折算 ${OPS[5.0]:.2f}，"
+         "与本金无关；0 美元情景即交易净额本身。是否独占一台服务器属于部署选择，本核算不证明最低必要成本。")
+L.append(f"- **滑点敏感**：反事实口径下，滑点 0→10 bps 使 1000 档交易净收益减少 "
+         f"BTC {_cf[('BTC', 0)] - _cf[('BTC', 10)]:.3f}、ETH {_cf[('ETH', 0)] - _cf[('ETH', 10)]:.3f} USDT"
+         "（与主表/反事实表一致）；滑点仍为情景假设，未实测。")
+L.append("- **保证金模式**：A/B 的差别只在清算距离与截断时点，不改变仓位与资金费本身；"
+         "B 的保证金含费用/滑点预留之外的全部现金，截断净额区间随之不同。提高保证金比例会同比例压低可部署名义与资金费收入（本版未变结构，仅对照 A/B）。")
+L.append("- **费率表敏感**：若实际账户适用其他地区费率表（如美国表现货 taker 0.35%），费用项显著放大，"
+         "小额档位结论可能翻转；本版用全球站普通用户 taker，属假设。")
+L.append(f"- **资金费环境**：本窗口正费率期占多数（BTC {cov['BTC']['pos']} 正 / {cov['BTC']['neg']} 负，"
+         f"ETH {cov['ETH']['pos']} 正 / {cov['ETH']['neg']} 负，共 {len(SETTLES)} 期）；本核算不回答费率转负时是否应空仓。\n")
+L.append("## 结论（限定于本样本与假设）\n")
+L.append("1. 在本样本、逐仓 35% 基础保证金、100/300/1000 USDT 三档与上述成本假设下，固定持有基准的"
+         "路径结果见主表：出现清算截断的模式/币种，其可实现净额以截断区间为准；存活模式的净额亦不足以覆盖 "
+         "5 美元/月独占运行预算情景（1000 档最佳情形见主表）。这一结论不外推到其他本金量级、保证金结构或时期。")
+L.append("2. 提前退出（清算截断）改变后续路径：截断后资金费不再累积，组合按退出时点结算；"
+         "1H 标记价格代理与盘中真实路径之间存在误差，其方向不保证单向，本版触发时刻均为 1H 收盘口径的代理结果。")
+L.append("3. 是否继续研究“只在高费率期持有”等结构变化，不在本轮范围；本轮只修正核算口径，不扩展策略。\n")
 L.append("## 未解决问题清单\n")
-L.append("1. 费率表归属（全球/美国/EEA）未核实，差异足以翻转小额结论，需用户实际账户等级确认后重算。")
-L.append("2. 滑点为情景假设；需前向阶段用盘口快照实测（含负费率恐慌时段）。")
-L.append("3. 清算检查为 1H 收盘口径，不能排除盘中清算；强平费、现货退出费未计入截断口径（计入只会更差）。")
-L.append("4. 逐仓资金费结算对保证金权益的处理按“计入权益”建模，与 OKX 逐仓实际划转规则需在下一阶段用官方文档复核。")
-L.append("5. 基差/两腿损益是单一 90 天窗口的实现值，不能外推分布；样本长度不足以估计尾部。")
-L.append("6. 口径 B 要求开仓即全额划入缓冲，属于纪律假设；真人执行时是否做到，不在本核算内。")
+L.append("1. 费率表归属（全球/美国/EEA）未核实，需用户实际账户等级确认后重算。")
+L.append("2. 滑点为情景假设，未实测；与资金费收入同量级。")
+L.append("3. 清算判定为 1H 标记收盘口径，不能排除盘中触发；强平实际成交价与清算费按 0%/100% 剩余权益两档情景给出，未重建真实强平过程。")
+L.append("4. 历史样本沿用现行 OKX 规则（资金费公式、逐仓划转、强平口径）属假设；规则历史变更未逐项考证。")
+L.append("5. 基差/两腿损益为单一 90 天窗口实现值，不能外推分布；样本长度不足以估计尾部。")
+L.append("6. 模式 B 要求开仓即按预留口径划入保证金，属纪律假设。")
+for i, (sym, cap, bps, short) in enumerate(B_DEGEN):
+    L.append(f"{7 + i}. 模式 B 预留不足：{sym} {cap} 档 {bps} bps 情景下，现金池比费用预留+滑点预留少 "
+             f"{short:.4f} USDT（入场价估计口径），该情景无额外保证金可划、B 退化为 A；"
+             "实际出场费用按出场名义计、低于预留估计，此缺口为估计口径产物，已如实标示。")
+L.append("")
+
+# ---- 修正记录（v2）：v1（已交付版）→ v2 前后对照，v1 数字引自 v1 报告原文 ----
+def _row(sym, cap, mode, bps=5):
+    return [x for x in [r for r in results if r["base"] == sym][0]["rows"]
+            if x["capital"] == cap and x["mode"] == mode and x["bps"] == bps][0]
+_bA, _eA, _eB = _row("BTC", 1000, "A"), _row("ETH", 1000, "A"), _row("ETH", 1000, "B")
+L.append("## 修正记录（v2）\n")
+L.append("| 项 | v1（已交付） | v2（本版） |")
+L.append("|---|---|---|")
+L.append("| 资金费仓位价值 | 成交 K 线开盘价 | 结算时刻标记价格（OKX 规则口径） |")
+L.append("| 清算判定价格 | 成交 K 线收盘价 | 标记价格 1H 收盘（事件时刻口径） |")
+L.append(f"| BTC 模式A 触发时刻 | 2026-09-21 20:00 UTC（K线 ts 标注，早 1 小时） | "
+         f"{iso(_bA['exit_time']) if _bA['outcome'] == 'liquidated' else '未触发'}（收盘对应时刻，标记价口径） |")
+L.append(f"| ETH 触发时刻 | 2026-09-11 13:00 UTC（ts 标注） | "
+         f"A {iso(_eA['exit_time']) if _eA['outcome'] == 'liquidated' else '未触发'} / "
+         f"B {iso(_eB['exit_time']) if _eB['outcome'] == 'liquidated' else '未触发'}（收盘对应时刻） |")
+L.append("| BTC 模式B | 宣称“未触发、完好数字成立” | 按标记价与费用后权益重检，结论以主表为准，不再预设幸存 |")
+L.append("| 截断净额(1000档,5bps) | BTC +3.77 / ETH +2.50（未计强平费与现货退出费） | "
+         f"BTC A {_bA['net_liqfull']:+.2f}..{_bA['net_liq0']:+.2f} / ETH A {_eA['net_liqfull']:+.2f}..{_eA['net_liq0']:+.2f}"
+         "（强平费 100%→0% 区间，含现货退出费与滑点） |")
+L.append("| 现货买入费 | 按 USDT 现金费计、残余敞口记 0 | 从买入资产扣、净到手减少，残余净空头敞口如实量化（见分配表） |")
+L.append("| 截断负权益处理 | v1 把触发时负权益计入组合净额（相当于组合赔付保证金缺口） | 逐仓损失以已划保证金为上限，剩余权益不低于 0；"
+         "ETH 1000 档截断净额由 +2.50 变为 +13.13，主因即此项与退出费口径（触发小时权益已跳至 −13.20） |")
+L.append("| 模式B 滑点资金 | 缓冲全额划入保证金，滑点另行扣除（同一笔钱两用） | 费用/滑点先预留，余额才划入保证金，逐情景验守恒与滑点来源 |")
+L.append("| 主表 | 完整 90 天完好对冲为主结果 | A/B 路径截断结果为主表；完好对冲降格为反事实诊断 |")
+L.append("| 运行成本 | 只列 5 美元/月一档 | 并列 0 与 5 美元/月两情景，5 美元表述为独占运行预算情景 |")
+L.append("| 滑点敏感文字 | “减少约 5.9/5.8 USDT”（与表不符） | 与表一致的实际差值（见敏感性说明） |")
+L.append("| 复现命令 | pull_data + benchmark 顺序执行 | 冻结数据只跑 benchmark.py；pull_data 单独标注为更新数据用 |")
+L.append("| 过度结论 | “真正损失不是爆仓本身”“真实只会更差”等 | 已删除，改为中性表述并限定结论范围 |")
 
 open(os.path.join(RES, "phase1_report.md"), "w").write("\n".join(L) + "\n")
-print("report v2 written")
-for r in results:
-    for row in r["rows"]:
-        print(r["base"], row["capital"], "fund", round(row["funding"], 2),
-              "spotleg", round(row["spot_leg"], 2), "perpleg", round(row["perp_leg"], 2),
-              "net5", round(row["nets"][5]["net"], 2), "afterOps", round(row["nets"][5]["net_after_ops"], 2),
-              "trigA", iso(row["trigA"][0]) if row["trigA"] else None,
-              "trigB", iso(row["trigB"][0]) if row["trigB"] else None,
-              "truncNet", round(row["trunc"]["net"], 2) if "trunc" in row else None)
+print("report written")
