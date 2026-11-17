@@ -1,0 +1,12 @@
+independent_tests.py 独立测试结果（v3；与 benchmark 内部自查分开）
+公式出处：OKX《Forced liquidation FAQ》逐仓 USDT 永续空头清算价 = (保证金余额 + 面值×张数×开仓均价) / (面值×张数×(1 + MMR + 费率))
+[PASS] T-A 现金流水核对 BTC 1000 B 5bp mini net0=9.7886 csv=9.7886 |Δ|=0.00005; netfull Δ=0.00005
+[PASS] T-A 现金流水核对 BTC 1000 A 5bp mini net0=2.0055 csv=2.0055 |Δ|=0.00003; netfull Δ=0.00000
+[PASS] T-A 现金流水核对 ETH 1000 A 0bp mini net0=14.8824 csv=14.8824 |Δ|=0.00000; netfull Δ=0.00000
+[PASS] T-A ETH/1000/A/0bp 扣成本上界复算 mini=+0.0879 csv=+0.0879（微小正值，只对诊断口径成立）
+[PASS] T-B 未来价格扰动下开仓配置不变 alloc_identical=True net_changed(扰动生效)=True rc=0
+[PASS] T-C(a) 触发权益按成交价 P0 起算 csv=2.7976 P0basis=2.7976 MK0basis=2.8102 系统差=+0.01254
+[PASS] T-C(b) MK0 扰动不影响主表 rc=0 bytes_identical=True
+[PASS] T-D 公式边界 BTC trigger=2026-09-21 21:00 UTC mark=86966.60 P_liq=86821.31; prev 2026-09-21 20:00 UTC mark=86445.90 < P_liq=86821.31
+[PASS] T-D 公式边界 ETH trigger=2026-09-11 14:00 UTC mark=2629.46 P_liq=2583.62; prev 2026-09-11 13:00 UTC mark=2510.13 < P_liq=2583.62
+总计 9/9 通过

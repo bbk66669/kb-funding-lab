@@ -1,4 +1,4 @@
-benchmark.py 自查结果（风验收修正版 v2）
+benchmark.py 自查结果（风复验修正版 v3；内部自查，独立测试见 independent_tests.txt）
 [PASS] 资金费符号方向（正费率空头收钱） synthetic=0.01
 [PASS] 合约单位换算 BTC 
 [PASS] 合约单位换算 ETH 
@@ -27,17 +27,23 @@ benchmark.py 自查结果（风验收修正版 v2）
 [PASS] 资金守恒 BTC 100 A 10bp 
 [PASS] 清算后不再计资金费 BTC 100 A 10bp until=0.5334 total=1.2888
 [PASS] 滑点资金来源充足(入场现金) BTC 100 B 0bp slip_in=0.0000 source=0.1413
-[PASS] 模式B预留未进保证金 BTC 100 0bp reserve=0.1413 fees+slip=0.1413
+[PASS] 模式B预留未进保证金 BTC 100 0bp reserve=0.1413 fees+slipest=0.1413
 [PASS] 资金守恒 BTC 100 B 0bp 
-[PASS] 滑点资金来源充足(入场现金) BTC 100 B 2bp slip_in=0.0283 source=0.1981
-[PASS] 模式B预留未进保证金 BTC 100 2bp reserve=0.1981 fees+slip=0.1981
+[PASS] 存活账本与反事实口径一致 BTC 100 B 0bp ledger=1.086370 cf=1.086370
+[PASS] 滑点资金来源充足(入场现金) BTC 100 B 2bp slip_in=0.0283 source=0.1979
+[PASS] 模式B预留未进保证金 BTC 100 2bp reserve=0.1979 fees+slipest=0.1979
 [PASS] 资金守恒 BTC 100 B 2bp 
-[PASS] 滑点资金来源充足(入场现金) BTC 100 B 5bp slip_in=0.0707 source=0.2832
-[PASS] 模式B预留未进保证金 BTC 100 5bp reserve=0.2832 fees+slip=0.2832
+[PASS] 存活账本与反事实口径一致 BTC 100 B 2bp ledger=1.029626 cf=1.029626
+[PASS] 滑点资金来源充足(入场现金) BTC 100 B 5bp slip_in=0.0707 source=0.2827
+[PASS] 模式B预留未进保证金 BTC 100 5bp reserve=0.2827 fees+slipest=0.2827
 [PASS] 资金守恒 BTC 100 B 5bp 
-[PASS] 滑点资金来源充足(入场现金) BTC 100 B 10bp slip_in=0.1414 source=0.4251
-[PASS] 模式B预留未进保证金 BTC 100 10bp reserve=0.4251 fees+slip=0.4251
+[PASS] 存活账本与反事实口径一致 BTC 100 B 5bp ledger=0.944509 cf=0.944509
+[PASS] 滑点资金来源充足(入场现金) BTC 100 B 10bp slip_in=0.1414 source=0.4241
+[PASS] 模式B预留未进保证金 BTC 100 10bp reserve=0.4241 fees+slipest=0.4241
 [PASS] 资金守恒 BTC 100 B 10bp 
+[PASS] 存活账本与反事实口径一致 BTC 100 B 10bp ledger=0.802649 cf=0.802649
+[PASS] 月度与主表对账 BTC 100 A monthly=0.1935 main=0.1935
+[PASS] 月度与主表对账 BTC 100 B monthly=0.9445 main=0.9445
 [PASS] 资金守恒 BTC 300 sum=300.0000
 [PASS] 现货净到手与残余敞口 BTC 300 net=0.00339660 residual=0.00000340
 [PASS] 四腿费用各计一次 BTC 300 
@@ -54,17 +60,23 @@ benchmark.py 自查结果（风验收修正版 v2）
 [PASS] 资金守恒 BTC 300 A 10bp 
 [PASS] 清算后不再计资金费 BTC 300 A 10bp until=1.6487 total=3.9834
 [PASS] 滑点资金来源充足(入场现金) BTC 300 B 0bp slip_in=0.0000 source=0.4369
-[PASS] 模式B预留未进保证金 BTC 300 0bp reserve=0.4369 fees+slip=0.4369
+[PASS] 模式B预留未进保证金 BTC 300 0bp reserve=0.4369 fees+slipest=0.4369
 [PASS] 资金守恒 BTC 300 B 0bp 
-[PASS] 滑点资金来源充足(入场现金) BTC 300 B 2bp slip_in=0.0874 source=0.6123
-[PASS] 模式B预留未进保证金 BTC 300 2bp reserve=0.6123 fees+slip=0.6123
+[PASS] 存活账本与反事实口径一致 BTC 300 B 0bp ledger=3.357871 cf=3.357871
+[PASS] 滑点资金来源充足(入场现金) BTC 300 B 2bp slip_in=0.0874 source=0.6117
+[PASS] 模式B预留未进保证金 BTC 300 2bp reserve=0.6117 fees+slipest=0.6117
 [PASS] 资金守恒 BTC 300 B 2bp 
-[PASS] 滑点资金来源充足(入场现金) BTC 300 B 5bp slip_in=0.2186 source=0.8754
-[PASS] 模式B预留未进保证金 BTC 300 5bp reserve=0.8754 fees+slip=0.8754
+[PASS] 存活账本与反事实口径一致 BTC 300 B 2bp ledger=3.182479 cf=3.182479
+[PASS] 滑点资金来源充足(入场现金) BTC 300 B 5bp slip_in=0.2186 source=0.8739
+[PASS] 模式B预留未进保证金 BTC 300 5bp reserve=0.8739 fees+slipest=0.8739
 [PASS] 资金守恒 BTC 300 B 5bp 
-[PASS] 滑点资金来源充足(入场现金) BTC 300 B 10bp slip_in=0.4371 source=1.3138
-[PASS] 模式B预留未进保证金 BTC 300 10bp reserve=1.3138 fees+slip=1.3138
+[PASS] 存活账本与反事实口径一致 BTC 300 B 5bp ledger=2.919393 cf=2.919393
+[PASS] 滑点资金来源充足(入场现金) BTC 300 B 10bp slip_in=0.4371 source=1.3109
+[PASS] 模式B预留未进保证金 BTC 300 10bp reserve=1.3109 fees+slipest=1.3109
 [PASS] 资金守恒 BTC 300 B 10bp 
+[PASS] 存活账本与反事实口径一致 BTC 300 B 10bp ledger=2.480915 cf=2.480915
+[PASS] 月度与主表对账 BTC 300 A monthly=0.5981 main=0.5981
+[PASS] 月度与主表对账 BTC 300 B monthly=2.9194 main=2.9194
 [PASS] 资金守恒 BTC 1000 sum=1000.0000
 [PASS] 现货净到手与残余敞口 BTC 1000 net=0.01138860 residual=0.00001140
 [PASS] 四腿费用各计一次 BTC 1000 
@@ -81,17 +93,23 @@ benchmark.py 自查结果（风验收修正版 v2）
 [PASS] 资金守恒 BTC 1000 A 10bp 
 [PASS] 清算后不再计资金费 BTC 1000 A 10bp until=5.5279 total=13.3562
 [PASS] 滑点资金来源充足(入场现金) BTC 1000 B 0bp slip_in=0.0000 source=1.4649
-[PASS] 模式B预留未进保证金 BTC 1000 0bp reserve=1.4649 fees+slip=1.4649
+[PASS] 模式B预留未进保证金 BTC 1000 0bp reserve=1.4649 fees+slipest=1.4649
 [PASS] 资金守恒 BTC 1000 B 0bp 
-[PASS] 滑点资金来源充足(入场现金) BTC 1000 B 2bp slip_in=0.2931 source=2.0529
-[PASS] 模式B预留未进保证金 BTC 1000 2bp reserve=2.0529 fees+slip=2.0529
+[PASS] 存活账本与反事实口径一致 BTC 1000 B 0bp ledger=11.258743 cf=11.258743
+[PASS] 滑点资金来源充足(入场现金) BTC 1000 B 2bp slip_in=0.2931 source=2.0509
+[PASS] 模式B预留未进保证金 BTC 1000 2bp reserve=2.0509 fees+slipest=2.0509
 [PASS] 资金守恒 BTC 1000 B 2bp 
-[PASS] 滑点资金来源充足(入场现金) BTC 1000 B 5bp slip_in=0.7328 source=2.9350
-[PASS] 模式B预留未进保证金 BTC 1000 5bp reserve=2.9350 fees+slip=2.9350
+[PASS] 存活账本与反事实口径一致 BTC 1000 B 2bp ledger=10.670666 cf=10.670666
+[PASS] 滑点资金来源充足(入场现金) BTC 1000 B 5bp slip_in=0.7328 source=2.9301
+[PASS] 模式B预留未进保证金 BTC 1000 5bp reserve=2.9301 fees+slipest=2.9301
 [PASS] 资金守恒 BTC 1000 B 5bp 
-[PASS] 滑点资金来源充足(入场现金) BTC 1000 B 10bp slip_in=1.4656 source=4.4052
-[PASS] 模式B预留未进保证金 BTC 1000 10bp reserve=4.4052 fees+slip=4.4052
+[PASS] 存活账本与反事实口径一致 BTC 1000 B 5bp ledger=9.788552 cf=9.788552
+[PASS] 滑点资金来源充足(入场现金) BTC 1000 B 10bp slip_in=1.4656 source=4.3953
+[PASS] 模式B预留未进保证金 BTC 1000 10bp reserve=4.3953 fees+slipest=4.3953
 [PASS] 资金守恒 BTC 1000 B 10bp 
+[PASS] 存活账本与反事实口径一致 BTC 1000 B 10bp ledger=8.318362 cf=8.318362
+[PASS] 月度与主表对账 BTC 1000 A monthly=2.0055 main=2.0055
+[PASS] 月度与主表对账 BTC 1000 B monthly=9.7886 main=9.7886
 [PASS] 资金守恒 ETH 100 sum=100.0000
 [PASS] 现货净到手与残余敞口 ETH 100 net=0.03796200 residual=0.00003800
 [PASS] 四腿费用各计一次 ETH 100 
@@ -109,21 +127,23 @@ benchmark.py 自查结果（风验收修正版 v2）
 [PASS] 资金守恒 ETH 100 A 10bp 
 [PASS] 清算后不再计资金费 ETH 100 A 10bp until=0.4152 total=1.0425
 [PASS] 滑点资金来源充足(入场现金) ETH 100 B 0bp slip_in=0.0000 source=0.1455
-[PASS] 模式B预留未进保证金 ETH 100 0bp reserve=0.1455 fees+slip=0.1455
+[PASS] 模式B预留未进保证金 ETH 100 0bp reserve=0.1455 fees+slipest=0.1455
 [PASS] 资金守恒 ETH 100 B 0bp 
 [PASS] 清算后不再计资金费 ETH 100 B 0bp until=0.4152 total=1.0425
-[PASS] 滑点资金来源充足(入场现金) ETH 100 B 2bp slip_in=0.0291 source=0.2024
-[PASS] 模式B预留未进保证金 ETH 100 2bp reserve=0.2024 fees+slip=0.2024
+[PASS] 滑点资金来源充足(入场现金) ETH 100 B 2bp slip_in=0.0291 source=0.2037
+[PASS] 模式B预留未进保证金 ETH 100 2bp reserve=0.2037 fees+slipest=0.2037
 [PASS] 资金守恒 ETH 100 B 2bp 
 [PASS] 清算后不再计资金费 ETH 100 B 2bp until=0.4152 total=1.0425
-[PASS] 滑点资金来源充足(入场现金) ETH 100 B 5bp slip_in=0.0728 source=0.2879
-[PASS] 模式B预留未进保证金 ETH 100 5bp reserve=0.2879 fees+slip=0.2879
+[PASS] 滑点资金来源充足(入场现金) ETH 100 B 5bp slip_in=0.0728 source=0.2910
+[PASS] 模式B预留未进保证金 ETH 100 5bp reserve=0.2910 fees+slipest=0.2910
 [PASS] 资金守恒 ETH 100 B 5bp 
 [PASS] 清算后不再计资金费 ETH 100 B 5bp until=0.4152 total=1.0425
-[PASS] 滑点资金来源充足(入场现金) ETH 100 B 10bp slip_in=0.1456 source=0.4302
-[PASS] 模式B预留未进保证金 ETH 100 10bp reserve=0.4302 fees+slip=0.4302
+[PASS] 滑点资金来源充足(入场现金) ETH 100 B 10bp slip_in=0.1456 source=0.4366
+[PASS] 模式B预留未进保证金 ETH 100 10bp reserve=0.4366 fees+slipest=0.4366
 [PASS] 资金守恒 ETH 100 B 10bp 
 [PASS] 清算后不再计资金费 ETH 100 B 10bp until=0.4152 total=1.0425
+[PASS] 月度与主表对账 ETH 100 A monthly=1.3462 main=1.3462
+[PASS] 月度与主表对账 ETH 100 B monthly=0.0461 main=0.0461
 [PASS] 资金守恒 ETH 300 sum=300.0000
 [PASS] 现货净到手与残余敞口 ETH 300 net=0.11488500 residual=0.00011500
 [PASS] 四腿费用各计一次 ETH 300 
@@ -140,21 +160,23 @@ benchmark.py 自查结果（风验收修正版 v2）
 [PASS] 资金守恒 ETH 300 A 10bp 
 [PASS] 清算后不再计资金费 ETH 300 A 10bp until=1.2565 total=3.1549
 [PASS] 滑点资金来源充足(入场现金) ETH 300 B 0bp slip_in=0.0000 source=0.4403
-[PASS] 模式B预留未进保证金 ETH 300 0bp reserve=0.4403 fees+slip=0.4403
+[PASS] 模式B预留未进保证金 ETH 300 0bp reserve=0.4403 fees+slipest=0.4403
 [PASS] 资金守恒 ETH 300 B 0bp 
 [PASS] 清算后不再计资金费 ETH 300 B 0bp until=1.2565 total=3.1549
-[PASS] 滑点资金来源充足(入场现金) ETH 300 B 2bp slip_in=0.0881 source=0.6127
-[PASS] 模式B预留未进保证金 ETH 300 2bp reserve=0.6127 fees+slip=0.6127
+[PASS] 滑点资金来源充足(入场现金) ETH 300 B 2bp slip_in=0.0881 source=0.6165
+[PASS] 模式B预留未进保证金 ETH 300 2bp reserve=0.6165 fees+slipest=0.6165
 [PASS] 资金守恒 ETH 300 B 2bp 
 [PASS] 清算后不再计资金费 ETH 300 B 2bp until=1.2565 total=3.1549
-[PASS] 滑点资金来源充足(入场现金) ETH 300 B 5bp slip_in=0.2203 source=0.8712
-[PASS] 模式B预留未进保证金 ETH 300 5bp reserve=0.8712 fees+slip=0.8712
+[PASS] 滑点资金来源充足(入场现金) ETH 300 B 5bp slip_in=0.2203 source=0.8808
+[PASS] 模式B预留未进保证金 ETH 300 5bp reserve=0.8808 fees+slipest=0.8808
 [PASS] 资金守恒 ETH 300 B 5bp 
 [PASS] 清算后不再计资金费 ETH 300 B 5bp until=1.2565 total=3.1549
-[PASS] 滑点资金来源充足(入场现金) ETH 300 B 10bp slip_in=0.4406 source=1.3020
-[PASS] 模式B预留未进保证金 ETH 300 10bp reserve=1.3020 fees+slip=1.3020
+[PASS] 滑点资金来源充足(入场现金) ETH 300 B 10bp slip_in=0.4406 source=1.3212
+[PASS] 模式B预留未进保证金 ETH 300 10bp reserve=1.3212 fees+slipest=1.3212
 [PASS] 资金守恒 ETH 300 B 10bp 
 [PASS] 清算后不再计资金费 ETH 300 B 10bp until=1.2565 total=3.1549
+[PASS] 月度与主表对账 ETH 300 A monthly=4.0740 main=4.0740
+[PASS] 月度与主表对账 ETH 300 B monthly=2.3571 main=2.3571
 [PASS] 资金守恒 ETH 1000 sum=1000.0000
 [PASS] 现货净到手与残余敞口 ETH 1000 net=0.38461500 residual=0.00038500
 [PASS] 四腿费用各计一次 ETH 1000 
@@ -171,19 +193,21 @@ benchmark.py 自查结果（风验收修正版 v2）
 [PASS] 资金守恒 ETH 1000 A 10bp 
 [PASS] 清算后不再计资金费 ETH 1000 A 10bp until=4.2067 total=10.5621
 [PASS] 滑点资金来源充足(入场现金) ETH 1000 B 0bp slip_in=0.0000 source=1.4741
-[PASS] 模式B预留未进保证金 ETH 1000 0bp reserve=1.4741 fees+slip=1.4741
+[PASS] 模式B预留未进保证金 ETH 1000 0bp reserve=1.4741 fees+slipest=1.4741
 [PASS] 资金守恒 ETH 1000 B 0bp 
 [PASS] 清算后不再计资金费 ETH 1000 B 0bp until=4.2067 total=10.5621
-[PASS] 滑点资金来源充足(入场现金) ETH 1000 B 2bp slip_in=0.2950 source=2.0511
-[PASS] 模式B预留未进保证金 ETH 1000 2bp reserve=2.0511 fees+slip=2.0511
+[PASS] 滑点资金来源充足(入场现金) ETH 1000 B 2bp slip_in=0.2950 source=2.0640
+[PASS] 模式B预留未进保证金 ETH 1000 2bp reserve=2.0640 fees+slipest=2.0640
 [PASS] 资金守恒 ETH 1000 B 2bp 
 [PASS] 清算后不再计资金费 ETH 1000 B 2bp until=4.2067 total=10.5621
-[PASS] 滑点资金来源充足(入场现金) ETH 1000 B 5bp slip_in=0.7374 source=2.9165
-[PASS] 模式B预留未进保证金 ETH 1000 5bp reserve=2.9165 fees+slip=2.9165
+[PASS] 滑点资金来源充足(入场现金) ETH 1000 B 5bp slip_in=0.7374 source=2.9487
+[PASS] 模式B预留未进保证金 ETH 1000 5bp reserve=2.9487 fees+slipest=2.9487
 [PASS] 资金守恒 ETH 1000 B 5bp 
 [PASS] 清算后不再计资金费 ETH 1000 B 5bp until=4.2067 total=10.5621
 [PASS] 滑点资金来源充足(入场现金) ETH 1000 B 10bp slip_in=1.4749 source=4.3488
-[PASS] 模式B预留未进保证金 ETH 1000 10bp reserve=4.3488 fees+slip=4.3588
+[PASS] 模式B预留未进保证金 ETH 1000 10bp reserve=4.3488 fees+slipest=4.4232
 [PASS] 资金守恒 ETH 1000 B 10bp 
 [PASS] 清算后不再计资金费 ETH 1000 B 10bp until=4.2067 total=10.5621
-总计 187/187 通过
+[PASS] 月度与主表对账 ETH 1000 A monthly=13.6392 main=13.6392
+[PASS] 月度与主表对账 ETH 1000 B monthly=12.2390 main=12.2390
+总计 211/211 通过
